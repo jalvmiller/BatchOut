@@ -1,0 +1,122 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: probend-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: probend_db
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root1234}"
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: probend-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  minio:
+    image: minio/minio
+    container_name: probend-minio
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-minioadmin}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-minioadminpassword}"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: probend-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # Web interface
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: probend-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5672:5672" # AMQP (mensageria)
+      - "127.0.0.1:15672:15672" # Interface web do RabbitMQ (RabbitMQ Management)
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: probend-backend
+    working_dir: /app
+    # Até a linha 35, hot reload para desenvolvimento.. mudar na produção
+    # Executa o Spring Boot dentro do container, em modo de desenvolvimento
+    command: sh -c "./mvnw spring-boot:run"
+    volumes:
+      # Volume bind, dá para montar o código dentro do container
+      # O docker não fica dependente do JAR, pode ter hot reload
+      - ./backend:/app
+      - ~/.m2/repository:/root/.m2/repository
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      mailpit:
+        condition: service_started
+      redis:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/probend_db?useSSL=false&serverTimezone=America/Sao_Paulo&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root1234}"
+      JWT_SECRET: "${JWT_SECRET:-ChavePadraoParaDesenvolvimentoApenas}"
+      MINIO_ENDPOINT: "http://minio:9000"
+      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      RABBITMQ_HOST: rabbitmq
+      # credenciais mail pit
+      SPRING_MAIL_HOST: "${SPRING_MAIL_HOST:-mailpit}"
+      SPRING_MAIL_PORT: "${SPRING_MAIL_PORT:-1025}"
+      SPRING_MAIL_USERNAME: "${SPRING_MAIL_USERNAME:-}"
+      SPRING_MAIL_PASSWORD: "${SPRING_MAIL_PASSWORD:-}"
+      SPRING_MAIL_AUTH: "${SPRING_MAIL_AUTH:-false}"
+      SPRING_MAIL_STARTTLS: "${SPRING_MAIL_STARTTLS:-false}"
+      # credenciais redis
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: probend-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+
+# Persistencia dos dados -> Volume
+volumes:
+  db_data:
+  minio_data:

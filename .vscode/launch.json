@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot - Application",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "br.com.joaomu.Application",
+            "projectName": "sistemasquestoes",
+            "args": "",
+            "envFile": "${workspaceFolder}/backend/.env"
+        }
+    ]
+}

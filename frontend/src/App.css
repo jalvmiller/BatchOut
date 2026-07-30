@@ -1,0 +1,19 @@
+/* Roboto Condensed do Google*/
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&display=swap');
+/* Roboto Padrão do Google*/
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+/* troca de todo aquele estilo manual pelo oferecido via tailwind*/
+@import "tailwindcss";
+
+@theme {
+  --font-roboto-condensed: "Roboto Condensed", sans-serif;
+  --font-roboto: "Roboto", sans-serif;
+}
+
+/* recurso específico do Tailwind para tema escuro, é uma regra personalizada que diz ao compilador
+do Tailwind que ele deve gerar classes específicas para o tema escuro 
+sempre que a classe 'dark' for encontrada no elemento raiz do documento
+(<html>) ou em qualquer um de seus descendentes.
+*/
+@variant dark (&:where(.dark, .dark *));

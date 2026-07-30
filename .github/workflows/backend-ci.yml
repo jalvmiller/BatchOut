@@ -1,0 +1,78 @@
+# Nome do worflow
+name: Backend CI
+
+# Observações:
+# Se o teste depende de serviçoe externo (MySQL remoto; variável de ambiente;
+# container) pode falhar. Usar banco H2 ou mock quando lidar com CI.
+
+# Quando o workflow é executado
+on:
+  # Executa o workflow em commits enviados ao repositório
+  push:
+    # Faz isso somente quando arquivos da pasta backend mudarem
+    paths:
+      - 'backend/**'
+
+    # Executa o workflow em pull requests na pasta backend 
+  pull_request:
+    paths:
+      - 'backend/**'
+
+# Trabalhos que o workflow roda, operações
+jobs:
+  # Job build, vai conter as etapas que vão construir o backend
+  build:
+    # Ambiente onde os comandos rodam, uma VM Linux com distro Ubuntu
+    # É chamado de RUNNER
+    runs-on: ubuntu-latest
+
+    # Passos
+    steps:
+      # Checkout, não é o mesmo que fazer o checkout local de branch,
+      # ele baixa o repositório para o runner e coloca a commit no diretório de trabalho.
+      # ele deixa o runner num estado de detached HEAD, ou seja,
+      # os arquivos do commit ficam ali, mas não em um branch com nome.
+      # A intenção é testar o commit que disparou a ação, não precisa trocar de branch
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Instalação do Java 21 no Runner, necessário ter antes de rodar Maven
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Deixa o script mvnw executável no Maven ( Wrapper )
+      - name: Make Maven wrapper executable
+        run: chmod +x backend/mvnw
+
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          # Se o pom.xml mudar, o hashmuda
+          # Quando o hash muda, o Actions não usa o cache antigo, ele cria um novo cache
+          # Evita que dependências antigas sejam usadas quando o projeto muda
+          key: ${{ runner.os }}-maven-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Muda o diretório de trabalho para o backend, roda o Maven Wrapper
+      # clean = remove build anterior
+      # test  = roda todos os testes JUnit com Mock
+      - name: Build and test backend
+        working-directory: backend
+        run: |
+          ./mvnw -B clean test
+
+      # Depois dos testes, ele gera um .xml por meio do Maven Surefire Report
+      # Pode ser enviado como artifact para o server do Github, e também pode ser
+      # posto na aba Tests que fica em Actions no Github
+
+      - name: Upload surefire reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports

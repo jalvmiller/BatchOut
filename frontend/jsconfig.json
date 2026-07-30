@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            // Isso faz com que o editor de código (VS Code) entenda que
+            // @/ é o caminho da pasta src e habilita o IntelliSense
+            "@/*": [
+                "src/*"
+            ]
+        }
+    },
+    "include": [
+        // O "include" diz pro editor de código quais arquivos ele deve considerar
+        "src/**/*"
+    ]
+}
