@@ -23,6 +23,9 @@ import java.util.List;
 // @EnableWebSecurity ativa o Spring Security
 @Configuration
 @EnableWebSecurity
+// Habilita as anotações @PreAuthorize e @PostAuthorize nos controllers.
+// Sem isso, mesmo colocando a anotação no método, ela seria ignorada silenciosamente.
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
@@ -51,19 +54,20 @@ public class SecurityConfig {
                 // Desabilitar sessões HTTP, o Spring Security não cria sessão, ou seja,
                 // cada requisição é independente e tem que trazer o token
                 .authorizeHttpRequests(auth -> auth
+                        // Rotas públicas — auth e swagger sem token
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        // Midia: leitura pública, escrita protegida pelo próprio controller
                         .requestMatchers("/midia/**").permitAll()
-                        .requestMatchers("/questoes/**").permitAll() // authenticated desligado
+                        // Usuarios: leitura pública, escrita requer autenticação
                         .requestMatchers("/usuarios/**").permitAll()
-                        .requestMatchers("/swagger-ui/**").permitAll() // swagger
-                        .requestMatchers("/swagger-ui.html").permitAll() // swagger
-                        .requestMatchers("/v3/api-docs/**").permitAll() // swagger
-                        .anyRequest().permitAll()) // só para testes
-                                                   // ativar o .anyRequest().authenticated() = proteger todas as rotas
-                // O quê poderia ser adicionado: RBAC(Role Based Access Control)
-                // Criar roles, ou seja, determinar quem acessa qual rota.
-                // poderia ter uma rota restrita a especialistas
-                // .requestMatchers(HttpMethod.POST, "/api/special/**").hasRole("ESPECIALISTA")
+                        // Despesas: todas as rotas exigem autenticação
+                        // As regras de role (SPECIALIST/ADMIN) são aplicadas via @PreAuthorize
+                        .requestMatchers("/despesas/**").authenticated()
+                        // Export jobs: todas as rotas exigem autenticação
+                        .requestMatchers("/export-jobs/**").authenticated()
+                        // Qualquer outra rota também requer autenticação
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         // Coloca esse fitro encadeado antes da autenticação de usuário senha
         return http.build();
