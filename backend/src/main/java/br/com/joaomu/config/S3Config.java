@@ -10,6 +10,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 // Classes para configurar o cliente S3
 
 /* 
@@ -68,6 +69,19 @@ public class S3Config {
                         AwsBasicCredentials.create(accessKey, secretKey)))
                 .region(Region.US_EAST_1) // MinIO ignora a região, mas o SDK do S3 exige
                 .forcePathStyle(true) // Necessário para MinIO e simuladores locais
+                .build();
+    }
+
+    // S3Presigner é um cliente separado do S3Client, dedicado à geração de
+    // Pre-signed URLs, URLs temporárias assinadas que dão acesso ao objeto
+    // sem precisar de autenticação, com expiração configurável.
+    @Bean
+    public S3Presigner s3Presigner() {
+        return S3Presigner.builder()
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessKey, secretKey)))
+                .region(Region.US_EAST_1)
                 .build();
     }
 }

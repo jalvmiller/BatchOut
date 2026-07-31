@@ -9,40 +9,76 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+// Exchange + 2 filas (export e email) + binding
+
+// Ciclo de vida:
+// Produtor -> Exchange -> (Routing Key) -> Fila -> Consumidor
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String QUEUE_EMAIL = "probend.resolucao.email.queue";
-    public static final String EXCHANGE_PROBEND = "probend.exchange";
-    public static final String ROUTING_KEY_EMAIL = "probend.resolucao.email.routingkey";
+    // ================================================================
+    // Exchange única = todas as filas do BatchOut usam a mesma exchange
+    // TopicExchange permite roteamento baseado em padrão (routing keys)
+    // ================================================================
+    public static final String EXCHANGE_BATCHOUT = "batchout.exchange";
 
-    // 1. Declara a fila
+    // ================================================================
+    // Fila 1: Exportação Batch (o coração do projeto)
+    // Produtor: ExportJobService | Consumidor: ExportJobListener
+    // ================================================================
+    public static final String QUEUE_EXPORT = "batchout.export.queue";
+    public static final String ROUTING_KEY_EXPORT = "batchout.export.routingkey";
+
+    // ================================================================
+    // Fila 2: Notificações por e-mail (exportação concluída)
+    // Produtor: ExportJobListener | Consumidor: NotificacaoListener
+    // ================================================================
+    public static final String QUEUE_EMAIL = "batchout.email.queue";
+    public static final String ROUTING_KEY_EMAIL = "batchout.email.routingkey";
+
+    // ================================================================
+    // Beans de infraestrutura
+    // ================================================================
+
+    // Exchange principal, única no sistema
+    // Não armazenada nada.. só recebe a mensagem e decide pra qual fila enviar
+    // usando a Routing Key
+    @Bean
+    public TopicExchange batchoutExchange() {
+        return new TopicExchange(EXCHANGE_BATCHOUT);
+    }
+
+    // Fila de exportação - durable=true: sobrevive a restart do RabbitMQ
+    // As filas armazenam as mensagens até que o consumer, worker esteja
+    // disponível para processar
+
+    // durable = true, para as duas filas, garante que as mensagens não sejam
+    // perdidas se o RabbitMQ for reiniciado
+    @Bean
+    public Queue exportQueue() {
+        return new Queue(QUEUE_EXPORT, true);
+    }
+
+    // Fila de e-mail - durable=true
     @Bean
     public Queue emailQueue() {
-        return new Queue(QUEUE_EMAIL, true); // true = fila persistente, sobrevive ao restart/queda
+        return new Queue(QUEUE_EMAIL, true);
     }
 
-    // 2. Declara o tópico (exchange), entrada onde o produtor publica mensagens
-    // TopicExchange permite roteamento baseado em padrão, pode usar regras
-    // como: * (um caractere), # (zero ou mais caracteres) para decidir
-    // quais filas envia
+    // Esse binding faz com que a fila "exportQueue" receba mensagens com a
+    // chave "batchout.export.routingkey".. é responsável pela conexão
+
+    // Todas as mensagens publicas no batchoutExchange com a routing key
+    // "batchout.export.routingkey" serão enviadas para a fila exportQueue
     @Bean
-    public TopicExchange probendExchange() {
-        return new TopicExchange(EXCHANGE_PROBEND);
+    public Binding bindingExport(Queue exportQueue, TopicExchange batchoutExchange) {
+        return BindingBuilder.bind(exportQueue)
+                .to(batchoutExchange)
+                .with(ROUTING_KEY_EXPORT);
     }
 
-    // 3. Declara o binding, vincula a fila ao tópico com uma chave de roteamento
-    // A chave "probend.resolucao.email.routingkey" garante que apenas mensagens
-    // com essa chave sejam entregues na fila
-    @Bean
-    public Binding bindingEmail(Queue emailQueue, TopicExchange probendExchange) {
-        return BindingBuilder.bind(emailQueue)
-                .to(probendExchange)
-                .with(ROUTING_KEY_EMAIL);
-    }
-
-    // 4. Bean de conversão (transforma POJOs em JSON e vice-versa)
-    // Por padrão, o Spring AMQP usa a serialização padrão do Java,
+    // Bean de conversão (transforma POJOs em JSON e vice-versa)
+    // Por padrão, o Spring AMQP usa a serialização padrão do Java (binário Java),
     // e isso quebra interoperabilidade caso Nodejs ou Python fosse usado,
     // além de ser propenso a erro de versão de classe como Serializable
     // Esse Bean altera o comportamento global do Spring AMQP

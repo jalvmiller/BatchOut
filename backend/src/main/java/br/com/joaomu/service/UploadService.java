@@ -9,8 +9,14 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.time.Duration;
 import java.util.UUID;
 
 /* 
@@ -28,14 +34,16 @@ public class UploadService {
     // Cliente responsável por interagir com o S3
     // final para garantir a imutabilidade após injeção
     private final S3Client s3Client;
-    // Nome do bucket onde as imagens serão salvas
     private final String bucketName;
+    // S3Presigner é responsável por gerar as Pre-signed URLs temporárias
+    private final S3Presigner s3Presigner;
 
-    // Construtor, responsável por receber a configuração do S3 e o nome do bucket
     public UploadService(
             S3Client s3Client,
+            S3Presigner s3Presigner,
             @Value("${minio.bucket-name}") String bucketName) {
         this.s3Client = s3Client;
+        this.s3Presigner = s3Presigner;
         this.bucketName = bucketName;
     }
 
@@ -90,6 +98,36 @@ public class UploadService {
             return "";
         }
         return fileName.substring(fileName.lastIndexOf(".") + 1);
+    }
+
+    // Upload de bytes brutos (usado pelo Worker para enviar o CSV gerado)
+    // Recebe um InputStream + nome da chave no bucket + content type
+    public void uploadBytes(InputStream inputStream, String key, String contentType) {
+        try {
+            byte[] bytes = inputStream.readAllBytes();
+            PutObjectRequest request = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(contentType)
+                    .build();
+            s3Client.putObject(request, RequestBody.fromBytes(bytes));
+        } catch (IOException e) {
+            throw new RuntimeException("Falha ao salvar arquivo no MinIO: " + key, e);
+        }
+    }
+
+    // Gera uma Pre-signed URL para download direto do MinIO.
+    // A URL expira após o número de minutos especificado.
+    // O frontend usa essa URL para baixar o arquivo sem precisar passar pelo Spring Boot.
+    public String gerarPreSignedUrl(String key, int duracaoMinutos) {
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(duracaoMinutos))
+                .getObjectRequest(req -> req.bucket(bucketName).key(key))
+                .build();
+
+        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        URL url = presignedRequest.url();
+        return url.toString();
     }
 
     private String resolveContentTypeFromExtension(String extension) {
