@@ -1,10 +1,10 @@
 services:
   db:
     image: mysql:8.0
-    container_name: probend-db
+    container_name: batchout-db
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: probend_db
+      MYSQL_DATABASE: batchout_db
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root1234}"
       MYSQL_ROOT_HOST: "%"
     ports:
@@ -19,14 +19,14 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: probend-redis
+    container_name: batchout-redis
     restart: unless-stopped
     ports:
       - "127.0.0.1:6379:6379"
 
   minio:
     image: minio/minio
-    container_name: probend-minio
+    container_name: batchout-minio
     restart: unless-stopped
     ports:
       - "127.0.0.1:9000:9000"
@@ -40,7 +40,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
-    container_name: probend-mailpit
+    container_name: batchout-mailpit
     restart: unless-stopped
     ports:
       - "127.0.0.1:1025:1025" # SMTP
@@ -48,7 +48,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.12-management
-    container_name: probend-rabbitmq
+    container_name: batchout-rabbitmq
     restart: unless-stopped
     ports:
       - "127.0.0.1:5672:5672" # AMQP (mensageria)
@@ -61,7 +61,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: probend-backend
+    container_name: batchout-backend
     working_dir: /app
     # Até a linha 35, hot reload para desenvolvimento.. mudar na produção
     # Executa o Spring Boot dentro do container, em modo de desenvolvimento
@@ -83,7 +83,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/probend_db?useSSL=false&serverTimezone=America/Sao_Paulo&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/batchout_db?useSSL=false&serverTimezone=America/Sao_Paulo&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root1234}"
       JWT_SECRET: "${JWT_SECRET:-ChavePadraoParaDesenvolvimentoApenas}"
