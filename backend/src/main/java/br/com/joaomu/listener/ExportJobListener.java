@@ -134,18 +134,36 @@ public class ExportJobListener {
     //
     // Em vez de SELECT * FROM despesas (pode trazer 100.000 linhas),
     // SELECT ... LIMIT 500 OFFSET 0, depois OFFSET 500, etc.
+    // O OFFSET é um deslocamento apenas, para progredir em cada iteração
     // Cada página é processada e descartada antes de carregar a próxima
     // ================================================================
     private String gerarCsvEmChunks(ExportJob job, DespesaFiltroRequest filtros) throws Exception {
+        // O outputStream será onde o CSV será construído
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        // O writer é usado para escrever no outputStream
         OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
 
         // Cabeçalho do CSV com BOM UTF-8 para Excel abrir corretamente
+        // O BOM (﻿) é um caractere especial que indica que o arquivo está em UTF-8.
+        // Garante que o Excel reconheça o arquivo como UTF-8 e não mostre caracteres
+        // estranhos no lugar de acentos
+        // E ele é escrito com "\uFEFF"
         writer.write('\uFEFF');
+        // Cabeçalho do CSV com as colunas que serão exportadas
         writer.write("ID,Titulo,Valor,Categoria,Status,Data Ocorrencia,Colaborador,Aprovador\n");
+        // ================== Parte do Excel com a geração do CSV ==================
 
+        // ================== Parte do loop das páginas ============================
         long totalRegistros = 0;
         int pagina = 0;
+        // Page é uma interface do Spring Data que representa uma página de dados.
+        // Contém a lista de elementos ( getContent() )
+        // O número da página ( getNumber() )
+        // O tamanho da página ( getSize() )
+        // O total de elementos ( getTotalElements() )
+        // O número total de páginas ( getTotalPages() )
+        // Se tem próxima página ( hasNext() )
+        // Se tem página anterior ( hasPrevious() )
         Page<Despesa> chunk;
 
         // Monta os parâmetros de filtro (null = sem filtro para aquele campo)
@@ -170,11 +188,11 @@ public class ExportJobListener {
             }
 
             pagina++;
-
         } while (chunk.hasNext()); // continua enquanto houver próxima página
 
-        writer.flush();
+        writer.flush(); // força a gravação do conteúdo do buffer na saída
 
+        // ========== Parte final, upload e notificação =========================
         // Atualiza a contagem de registros no job
         job.setTotalRegistros(totalRegistros);
         jobRepository.save(job);
@@ -189,6 +207,7 @@ public class ExportJobListener {
         return nomeArquivo;
     }
 
+    // Usado no método principal
     // Formata uma linha de despesa no padrão CSV
     // escapeCSV evita quebra de campos que contêm vírgulas ou aspas
     private String formatarLinhaCsv(Despesa despesa) {
@@ -203,8 +222,9 @@ public class ExportJobListener {
                 despesa.getAprovador() != null ? escapeCSV(despesa.getAprovador().getNome()) : "") + "\n";
     }
 
-    // Envolve o valor em aspas duplas se ele contiver vírgula, aspas ou quebras de
-    // linha
+    // Usado no método formatarLinhaCsv
+    // Envolve o valor em aspas duplas se ele contiver
+    // vírgula, aspas ou quebras de linha
     private String escapeCSV(String value) {
         if (value == null)
             return "";
