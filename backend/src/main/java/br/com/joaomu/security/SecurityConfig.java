@@ -54,20 +54,18 @@ public class SecurityConfig {
                 // Desabilitar sessões HTTP, o Spring Security não cria sessão, ou seja,
                 // cada requisição é independente e tem que trazer o token
                 .authorizeHttpRequests(auth -> auth
-                        // Rotas públicas — auth e swagger sem token
+                        // Rotas públicas — auth, swagger, despesas e export-jobs sem exigir token
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        // Midia: leitura pública, escrita protegida pelo próprio controller
+                        // Midia: leitura e escrita pública para testes de API
                         .requestMatchers("/midia/**").permitAll()
-                        // Usuarios: leitura pública, escrita requer autenticação
+                        // Usuarios: leitura pública
                         .requestMatchers("/usuarios/**").permitAll()
-                        // Despesas: todas as rotas exigem autenticação
-                        // As regras de role (SPECIALIST/ADMIN) são aplicadas via @PreAuthorize
-                        .requestMatchers("/despesas/**").authenticated()
-                        // Export jobs: todas as rotas exigem autenticação
-                        .requestMatchers("/export-jobs/**").authenticated()
-                        // Qualquer outra rota também requer autenticação
-                        .anyRequest().authenticated())
+                        // Despesas e Export-jobs: públicas para chamadas diretas via Swagger
+                        .requestMatchers("/despesas/**").permitAll()
+                        .requestMatchers("/export-jobs/**").permitAll()
+                        // Qualquer outra rota
+                        .anyRequest().permitAll())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         // Coloca esse fitro encadeado antes da autenticação de usuário senha
         return http.build();
