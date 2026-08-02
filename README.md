@@ -2,19 +2,19 @@
 
 # BatchOut 📨
 
+### 📌 Sobre o Projeto + Stack Completa
+<div align="center">
+O <b>BatchOut</b> é uma plataforma corporativa para gestão e exportação assíncrona de relatórios de despesas de grande volume.
+<br><br>
+É um projeto pessoal que uso para fixar conhecimento relacionado a solução de problemas de performance em sistemas de grande porte. Por isso, tenho a intenção de continuar melhorando este projeto, e eventualmente trazer uma interface web quando implementar mais funcionalidades<br><br>
+</div>
+
 ![Java](https://img.shields.io/badge/Java%2021-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot%203-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
 ![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL%208.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-</div>
-
-### 📌 Sobre o Projeto + Stack Completa
-<div align="center">
-O <b>BatchOut</b> é uma plataforma corporativa para gestão e exportação assíncrona de relatórios de despesas de grande volume.
-<br><br>
-Desenvolvido com foco em resolver o problema de estouro de memória (<i>OutOfMemoryError</i>) e <i>timeouts</i> HTTP no processamento de grandes massas de dados. Para isso, é utilizado processamento em lotes (<i>chunking</i>), mensageria com RabbitMQ e armazenamento de arquivos via MinIO S3.<br><br>
 </div>
 
 ### **♠️ Backend (Tecnologias Estruturais) & APIs**
